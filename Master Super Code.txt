@@ -1,0 +1,177 @@
+#include <Arduino.h>
+#include <Wire.h>
+//#include <Adafruit_GFX.h>
+//#include <Adafruit_SSD1306.h>
+
+#define SLAVE_BROADCAST_ADDR 0x00  //default address
+#define SLAVE_ADDR 0x00       //SLAVE_ADDR 0xA0-0xAF
+uint16_t distance_H=0;
+uint16_t distance_L=0;
+uint16_t distance=0;
+
+const int pingPin = 6; // Trigger Pin of Ultrasonic Sensor
+const int echoPin = 7; // Echo Pin of Ultrasonic Sensor
+
+uint16_t time_sit1 = 0;
+uint16_t time_sit2 = 0;
+
+uint16_t time_leave1 = 0;
+uint16_t time_leave2 = 0;
+
+uint16_t lim = 75;
+
+//Adafruit_SSD1306 display = Adafruit_SSD1306(128, 32, &Wire);
+
+void setup() {
+  Serial.begin(9600);
+  Wire.begin();
+  Serial.println("OLED FeatherWing test");
+ // display.begin(SSD1306_SWITCHCAPVCC, 0x3C); // Address 0x3C for 128x32
+
+     pinMode (13,OUTPUT);
+     pinMode (2,OUTPUT);
+
+  Serial.println("OLED begun");
+
+  // Show image buffer on the display hardware.
+  // Since the buffer is intialized with an Adafruit splashscreen
+  // internally, this will display the splashscreen.
+ // display.display();
+  delay(1000);
+
+  // Clear the buffer.
+ 
+  Serial.println("IO test");
+}
+
+void loop() {    
+   
+   long duration;
+   digitalWrite(13,HIGH);
+ 
+   pinMode(pingPin, OUTPUT);
+   digitalWrite(pingPin, LOW);
+   delayMicroseconds(2);
+   digitalWrite(pingPin, HIGH);
+   delayMicroseconds(10);
+   digitalWrite(pingPin, LOW);
+   pinMode(echoPin, INPUT);
+   duration = pulseIn(echoPin, HIGH);
+   delay(100);
+  // inches = microsecondsToInches(distance);
+   distance = microsecondsToCentimeters(duration);
+     Serial.print("cm - ");
+     Serial.print(distance);
+     Serial.println();
+  
+
+
+
+  
+ // Wire.beginTransmission(SLAVE_ADDR); // transmit to device #8
+//  Wire.write(1);              // measure command: 0x01
+ // Wire.endTransmission();    // stop transmitting 
+ // Wire.requestFrom(SLAVE_ADDR, 2);    // request 6 bytes from slave device #8
+  
+//while (true) { // slave may send less than requested
+
+  if(distance<lim){
+    //distance_H = Wire.read();  
+   // distance_L = Wire.read();  
+    //distance = (uint16_t)distance_H<<8;
+    distance = distance; //|distance_L;
+    sit();  
+    time_leave1++;
+    calculatetime();
+    if(time_sit2>12000){
+      maxsit();
+      time_leave1 = millis()/1000;
+      time_leave1++;
+      calculatetime();
+    }
+    else if (distance>lim){
+      calculatetime();
+      Serial.print("Time sit : ");
+      Serial.print(time_sit2/1000);  
+      Serial.println(" sec");  
+      time_sit1 = millis()/1000;
+      Serial.println("Nobody");
+      time_sit1++;
+      delay(1000);
+      //break;
+    }
+  }
+  
+  else if(distance>lim){   
+    Serial.println("Nobody");
+    time_sit1++;
+    delay(1000);  
+   // distance_H = Wire.read();
+   // distance_L = Wire.read();  
+    //distance = (uint16_t)distance_H<<8;
+    distance = distance;//|distance_L;   
+    if(distance<lim){    
+      calculateleave();
+      time_leave1 = millis()/1000;
+      sit();
+      time_leave1++;    
+      calculatetime();
+    if(time_sit2>12000){
+      maxsit();
+      time_leave1 = millis()/1000;
+      time_leave1++;
+      calculatetime();
+    }
+     else if (distance>lim){
+      calculatetime();    
+      Serial.print("Time sit : ");
+      Serial.print(time_sit2/1000);
+      Serial.println(" sec");
+      time_sit1 = millis()/1000;
+      time_sit1++;
+      delay(1000);
+    }
+    }
+  }
+  
+// } 
+ }
+
+ void sit(){ //calculate the distance from the ultrasonic sensor
+  Serial.print("Sit "); 
+  Serial.print(distance);
+  Serial.println("cm"); 
+  delay(1000);
+  return;
+ }
+
+ void maxsit(){ //when the user sit for a too long time
+  Serial.println("");
+  Serial.println("Take a break !");
+  delay(1000);
+  if(distance>lim){
+    time_sit1 = millis()/1000;
+    time_sit2 = 0;
+  }
+ 
+  //return;
+ }
+ 
+ void calculatetime(){ //calculate for how long the user sit
+  time_sit2 = millis()-(time_sit1*1000);  
+  return;
+ }
+
+ void calculateleave(){ //calculate for how long the user left
+  time_leave2 = millis()- (time_leave1*1000);
+  Serial.print("Time leave : ");
+  Serial.print(time_leave2/1000);
+  Serial.println(" sec");
+
+  delay(1000);
+  return;
+ }
+
+long microsecondsToCentimeters(long microseconds) {
+   return microseconds / 29 / 2;
+}
